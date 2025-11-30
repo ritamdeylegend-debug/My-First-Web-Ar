@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+
+      #startBtn {
+        position: fixed;
+        z-index: 9999;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        padding: 12px 22px;
+        font-size: 16px;
+        border-radius: 10px;
+        border: none;
+        background: #111;
+        color: #fff;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 🔘 One tap to unlock video audio/autoplay -->
+    <button id="startBtn">Start AR Video</button>
+
+    <a-scene
+      mindar-image="imageTargetSrc: ./assets/targets.mind"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <!-- 🔹 Your video file -->
+        <video
+          id="video"
+          src="assets/QR1.mp4"
+          preload="auto"
+          muted
+          playsinline
+          webkit-playsinline
+          loop
+          crossorigin="anonymous"
+        ></video>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <!-- 🔹 Image target root -->
+      <a-entity id="marker" mindar-image-target="targetIndex: 0">
+        <!-- 🔹 A-Frame's built-in video plane -->
+        <a-video
+          id="video-plane"
+          src="#video"
+          position="0 0 0"
+          width="1"
+          height="0.5"
+          rotation="0 0 0"
+        ></a-video>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const video = document.querySelector("#video");
+        const marker = document.querySelector("#marker");
+        const plane = document.querySelector("#video-plane");
+        const startBtn = document.getElementById("startBtn");
+
+        // ensure
+        video.muted = true;
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
+
+        // 🟡 Auto-resize plane to match video aspect ratio
+        video.addEventListener("loadedmetadata", () => {
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+
+          if (!vw || !vh) {
+            console.log("No video metadata");
+            return;
+          }
+
+          const aspect = vw / vh;
+          const baseWidth = 1; // change this to make it bigger/smaller
+          const baseHeight = baseWidth / aspect;
+
+          plane.setAttribute("width", baseWidth);
+          plane.setAttribute("height", baseHeight);
+
+          console.log("Aspect:", aspect, "plane:", baseWidth, baseHeight);
+        });
+
+        // 🔘 User tap to unlock video (required by many browsers)
+        startBtn.addEventListener("click", async () => {
+          try {
+            await video.play(); // start once
+            console.log("Video unlocked");
+            startBtn.style.display = "none";
+          } catch (e) {
+            console.log("Cannot start video from button:", e);
+          }
+        });
+
+        // 🟢 When marker is found → play
+        marker.addEventListener("targetFound", async () => {
+          console.log("Target found");
+          try {
+            await video.play();
+            console.log("Video playing on marker");
+          } catch (e) {
+            console.log("Play blocked, tap button first", e);
+          }
+        });
+
+        // 🔴 When marker lost → pause + reset
+        marker.addEventListener("targetLost", () => {
+          console.log("Target lost");
+          video.pause();
+          video.currentTime = 0;
+        });
+      });
+    </script>
+  </body>
+</html>
